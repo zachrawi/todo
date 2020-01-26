@@ -3,10 +3,12 @@ package com.zachrawi.todo;
 import android.content.Context;
 import android.graphics.Paint;
 import android.graphics.Typeface;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -19,11 +21,13 @@ public class TodoAdapter extends RecyclerView.Adapter<TodoAdapter.ViewHolder> {
     private Context mContext;
     private int mResource;
     private ArrayList<Todo> mTodos;
+    private OnClickListener mOnClickListener;
 
-    public TodoAdapter(Context context, int resource, ArrayList<Todo> todos) {
+    public TodoAdapter(Context context, int resource, ArrayList<Todo> todos, OnClickListener onClickListener) {
         mContext = context;
         mResource = resource;
         mTodos = todos;
+        mOnClickListener = onClickListener;
     }
 
     @NonNull
@@ -37,7 +41,7 @@ public class TodoAdapter extends RecyclerView.Adapter<TodoAdapter.ViewHolder> {
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull final ViewHolder holder, final int position) {
         Todo todo = mTodos.get(position);
 
         holder.tvActivity.setText(todo.getActivity());
@@ -50,6 +54,21 @@ public class TodoAdapter extends RecyclerView.Adapter<TodoAdapter.ViewHolder> {
             holder.tvActivity.setPaintFlags(holder.tvActivity.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
             holder.tvActivity.setTypeface(null, Typeface.NORMAL);
         }
+
+        holder.cbDone.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                CheckBox cb = (CheckBox) v;
+                mOnClickListener.onChecked(holder.getAdapterPosition(), cb.isChecked());
+            }
+        });
+
+        holder.ivDelete.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mOnClickListener.onDelete(holder.getAdapterPosition());
+            }
+        });
     }
 
     @Override
@@ -69,5 +88,11 @@ public class TodoAdapter extends RecyclerView.Adapter<TodoAdapter.ViewHolder> {
             tvActivity = itemView.findViewById(R.id.tvActivity);
             ivDelete = itemView.findViewById(R.id.ivDelete);
         }
+    }
+
+    public interface OnClickListener {
+        void onChecked(int position, boolean isChecked);
+
+        void onDelete(int position);
     }
 }
