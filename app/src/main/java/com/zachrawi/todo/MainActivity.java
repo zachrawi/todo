@@ -15,7 +15,15 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.widget.Toast;
 
+import com.parse.FindCallback;
+import com.parse.GetCallback;
+import com.parse.ParseException;
+import com.parse.ParseObject;
+import com.parse.ParseQuery;
+import com.parse.SaveCallback;
+
 import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     RecyclerView mRecyclerView;
@@ -31,18 +39,35 @@ public class MainActivity extends AppCompatActivity {
 
         mTodos = new ArrayList<>(); // kosong
 
-        // isi data todo
-        mTodos.add(new Todo("Sarapan pagi", true));
-        mTodos.add(new Todo("Makan siang", false));
-        mTodos.add(new Todo("Makan malam", false));
-        mTodos.add(new Todo("Mandi pagi", true));
-
         mTodoAdapter = new TodoAdapter(this, R.layout.item_todo, mTodos, new TodoAdapter.OnClickListener() {
             @Override
-            public void onChecked(int position, boolean isChecked) {
+            public void onChecked(int position, final boolean isChecked) {
                 Log.d("###", "onChecked: ");
                 Todo todo = mTodos.get(position);
                 todo.setDone(isChecked);
+
+                ParseQuery<ParseObject> query = ParseQuery.getQuery("MyTodo");
+                query.getInBackground(todo.getId(), new GetCallback<ParseObject>() {
+                    @Override
+                    public void done(ParseObject object, ParseException e) {
+                        if (e == null) {
+                            object.put("done", isChecked);
+
+                            object.saveInBackground(new SaveCallback() {
+                                @Override
+                                public void done(ParseException e) {
+                                    if (e == null) {
+
+                                    } else {
+                                        Toast.makeText(MainActivity.this, "Error: " + e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+                            });
+                        } else {
+                            Toast.makeText(MainActivity.this, "Error: " + e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
 
                 mTodos.set(position, todo);
                 mTodoAdapter.notifyDataSetChanged();
@@ -51,6 +76,20 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onDelete(int position) {
                 Log.d("###", "onDelete: ");
+
+                Todo todo = mTodos.get(position);
+
+                ParseQuery<ParseObject> query = ParseQuery.getQuery("MyTodo");
+
+                query.getInBackground(todo.getId(), new GetCallback<ParseObject>() {
+                    @Override
+                    public void done(ParseObject object, ParseException e) {
+                        if (e == null) {
+                            object.deleteInBackground();
+                        }
+                    }
+                });
+
                 mTodos.remove(position);
                 mTodoAdapter.notifyDataSetChanged();
             }
@@ -60,6 +99,39 @@ public class MainActivity extends AppCompatActivity {
 
         RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(this);
         mRecyclerView.setLayoutManager(layoutManager);
+
+        loadTodo();
+    }
+
+    private void loadTodo() {
+        ParseQuery<ParseObject> query = ParseQuery.getQuery("MyTodo");
+
+        query.findInBackground(new FindCallback<ParseObject>() {
+            @Override
+            public void done(List<ParseObject> objects, ParseException e) {
+                if (e == null) {
+                    mTodos.clear();
+
+                    for (int i=0;i<objects.size();i++) {
+                        ParseObject parseObject = objects.get(i);
+                        Log.d("###", "id: " + parseObject.getObjectId());
+                        boolean done = parseObject.getBoolean("done");
+                        String activity = parseObject.getString("activity");
+
+                        mTodos.add(new Todo(parseObject.getObjectId(), activity, done));
+                    }
+
+                    MainActivity.this.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            mTodoAdapter.notifyDataSetChanged();
+                        }
+                    });
+                } else {
+                    Toast.makeText(MainActivity.this, "Error: " + e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
     }
 
     @Override
@@ -86,8 +158,20 @@ public class MainActivity extends AppCompatActivity {
             if (resultCode == Activity.RESULT_OK) {
                 String activity = data.getStringExtra("activity");
 
-                mTodos.add(new Todo(activity, false));
-                mTodoAdapter.notifyDataSetChanged();
+                ParseObject parseObject = new ParseObject("MyTodo");
+                parseObject.put("done", false);
+                parseObject.put("activity", activity);
+
+                parseObject.saveInBackground(new SaveCallback() {
+                    @Override
+                    public void done(ParseException e) {
+                        if (e == null) {
+                            Toast.makeText(MainActivity.this, "Data berhasil disimpan", Toast.LENGTH_SHORT).show();
+
+                            loadTodo();
+                        }
+                    }
+                });
             }
         }
         super.onActivityResult(requestCode, resultCode, data);

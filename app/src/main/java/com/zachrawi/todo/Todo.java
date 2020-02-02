@@ -1,12 +1,22 @@
 package com.zachrawi.todo;
 
 public class Todo {
+    String id;
     String activity;
     boolean done;
 
-    public Todo(String activity, boolean done) {
+    public Todo(String id, String activity, boolean done) {
+        this.id = id;
         this.activity = activity;
         this.done = done;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
     public String getActivity() {
